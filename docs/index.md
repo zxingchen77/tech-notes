@@ -20,7 +20,12 @@
 
 ## 从哪里开始
 
-本站刚刚建立，目前仅有一篇[Markdown 写作示例](blog/posts/technology/markdown-example.md)，用于演示长文结构、代码与引用，并非正式研究成果。后续文章会在完成整理与核查后逐步发布。
+先从这两篇文章开始：
+
+- [面对 AI 海量且繁杂信息时的阅读抗拒：原因、干预与可执行工作流](blog/posts/learning/ai-information-overload.md)
+- [AI 写了90%的代码，未来软件工程师靠什么赚钱？](blog/posts/ai-research/ai-software-engineer-value.md)
+
+[Markdown 写作示例](blog/posts/technology/markdown-example.md)用于展示本站的文章结构与排版。
 
 ## 内容约定
 

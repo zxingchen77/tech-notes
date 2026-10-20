@@ -6,6 +6,8 @@
 
 关注人工智能的能力边界、应用与产业变化。研究报告应注明研究时间、原始来源、关键假设与尚未验证的问题。
 
+已发布：[AI 写了90%的代码，未来软件工程师靠什么赚钱？](blog/posts/ai-research/ai-software-engineer-value.md)。
+
 ## Technology · 技术实践
 
 记录编程、软件工程和工具使用。优先提供环境信息、可复现步骤与验证结果。
@@ -15,6 +17,8 @@
 ## Learning · 学习笔记
 
 整理阅读、学习方法和知识管理经验，说明学到了什么、如何应用、还有哪些疑问。
+
+已发布：[面对 AI 海量且繁杂信息时的阅读抗拒：原因、干预与可执行工作流](blog/posts/learning/ai-information-overload.md)。
 
 ## Thinking · 个人思考
 
