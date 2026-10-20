@@ -1,0 +1,74 @@
+site_name: 星辰 · 技术与研究
+site_description: 关于 AI、软件工程与持续学习的中文研究和实践笔记。
+site_url: https://zxingchen77.github.io/tech-notes/
+repo_url: https://github.com/zxingchen77/tech-notes
+repo_name: zxingchen77/tech-notes
+edit_uri: edit/main/docs/
+theme:
+  name: material
+  language: zh
+  font: false
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: blue grey
+      accent: teal
+      toggle:
+        icon: material/weather-night
+        name: 切换到深色模式
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: blue grey
+      accent: teal
+      toggle:
+        icon: material/weather-sunny
+        name: 切换到浅色模式
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+plugins:
+  - search:
+      lang: [zh, en]
+  - blog:
+      post_url_format: "{slug}"
+      post_date_format: yyyy年MM月dd日
+      post_readtime: false
+      archive_name: 按年份浏览
+      categories_name: 按分类浏览
+      categories_allowed:
+        - AI 研究
+        - 技术实践
+        - 学习笔记
+        - 个人思考
+      draft_if_future_date: true
+  - tags
+markdown_extensions:
+  - admonition
+  - attr_list
+  - footnotes
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.tasklist:
+      custom_checkbox: true
+nav:
+  - 首页: index.md
+  - 文章:
+      - blog/index.md
+  - 内容分类: topics.md
+  - 标签: tags.md
+  - 写作指南: guides/writing.md
+  - 关于: about.md
+extra_css:
+  - stylesheets/extra.css

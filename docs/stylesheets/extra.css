@@ -1,0 +1,9 @@
+/* Keep Material's responsive navigation; tune only reading typography. */
+:root { --md-text-font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; --md-code-font: "SFMono-Regular", Consolas, monospace; }
+.md-typeset { font-size: .85rem; line-height: 1.85; }
+.md-typeset h1 { font-weight: 650; letter-spacing: -.025em; color: var(--md-default-fg-color); }
+.md-typeset h2 { margin-top: 2em; font-weight: 600; }
+.md-typeset p, .md-typeset li { overflow-wrap: anywhere; }
+.md-typeset pre { line-height: 1.6; }
+.md-typeset blockquote { border-left-color: var(--md-accent-fg-color); }
+@media (min-width: 1220px) { .md-content__inner { max-width: 48rem; margin-inline: auto; padding-inline: 1.2rem; } }
