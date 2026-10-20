@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+  <p class="article-dates">
+    发布于 <time datetime="{{ page.config.date.created.isoformat() }}">{{ page.config.date.created.strftime('%Y-%m-%d') }}</time>
+    {% if page.config.date.updated %}
+      · 更新于 <time datetime="{{ page.config.date.updated.isoformat() }}">{{ page.config.date.updated.strftime('%Y-%m-%d') }}</time>
+    {% endif %}
+  </p>
+  <details class="article-outline">
+    <summary>文章目录</summary>
+    <ul>
+      {% for entry in page.toc recursive %}
+        <li><a href="{{ entry.url }}">{{ entry.title }}</a>
+          {% if entry.children %}<ul>{{ loop(entry.children) }}</ul>{% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  </details>
+  {{ super() }}
+{% endblock %}

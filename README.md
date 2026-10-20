@@ -43,6 +43,7 @@ mkdocs.yml                   # 网站配置、固定页面导航
 requirements.txt             # 固定依赖版本
 requirements.in              # 直接依赖与主版本约束
 templates/article.md         # 可复制模板，不参与网站构建
+overrides/blog-post.html     # 显示明确日期和窄屏折叠目录
 docs/
   index.md                   # 中文首页
   about.md                   # 关于

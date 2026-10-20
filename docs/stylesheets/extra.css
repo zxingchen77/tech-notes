@@ -7,3 +7,6 @@
 .md-typeset pre { line-height: 1.6; }
 .md-typeset blockquote { border-left-color: var(--md-accent-fg-color); }
 @media (min-width: 1220px) { .md-content__inner { max-width: 48rem; margin-inline: auto; padding-inline: 1.2rem; } }
+
+.article-dates { color: var(--md-default-fg-color--light); font-size: .72rem; }
+@media (min-width: 960px) { .article-outline { display: none; } }

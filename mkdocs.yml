@@ -6,6 +6,7 @@ repo_name: zxingchen77/tech-notes
 edit_uri: edit/main/docs/
 theme:
   name: material
+  custom_dir: overrides
   language: zh
   font: false
   palette:
