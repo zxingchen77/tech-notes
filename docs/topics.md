@@ -23,3 +23,5 @@
 ## Thinking · 个人思考
 
 记录个人观点、反思与随笔，明确区分观察和推断，保留观点随证据变化的空间。
+
+已发布：[中国、美国、新加坡：未来十年在哪里发展职业最值得？](blog/posts/thinking/china-us-singapore-career-outlook.md)。

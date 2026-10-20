@@ -20,8 +20,9 @@
 
 ## 从哪里开始
 
-先从这两篇文章开始：
+从这些文章开始：
 
+- [中国、美国、新加坡：未来十年在哪里发展职业最值得？](blog/posts/thinking/china-us-singapore-career-outlook.md)
 - [面对 AI 海量且繁杂信息时的阅读抗拒：原因、干预与可执行工作流](blog/posts/learning/ai-information-overload.md)
 - [AI 写了90%的代码，未来软件工程师靠什么赚钱？](blog/posts/ai-research/ai-software-engineer-value.md)
 
