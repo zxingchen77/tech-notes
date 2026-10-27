@@ -1011,9 +1011,6 @@ F. 对比矩阵
 
 > **“AI 应该先证明，为什么这段信息值得占用我的注意力。”**
 
-自动同步实测：SYNC-CHECK-20261027-READING。此行用于验证，测试后删除。
-
-
 ## 引用脚注
 
 [^source-sweller]: Sweller（1988），Cognitive Load During Problem Solving。原始网址未随原稿提供，待补充。
