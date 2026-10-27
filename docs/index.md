@@ -22,6 +22,8 @@
 
 从这些文章开始：
 
+- [具身智能：为什么机器人还没有迎来自己的 ChatGPT 时刻？](blog/posts/ai-research/embodied-ai-chatgpt-moment.md)
+
 - [中国、美国、新加坡：未来十年在哪里发展职业最值得？](blog/posts/thinking/china-us-singapore-career-outlook.md)
 - [面对 AI 海量且繁杂信息时的阅读抗拒：原因、干预与可执行工作流](blog/posts/learning/ai-information-overload.md)
 - [AI 写了90%的代码，未来软件工程师靠什么赚钱？](blog/posts/ai-research/ai-software-engineer-value.md)

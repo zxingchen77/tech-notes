@@ -8,6 +8,8 @@
 
 已发布：[AI 写了90%的代码，未来软件工程师靠什么赚钱？](blog/posts/ai-research/ai-software-engineer-value.md)。
 
+已发布：[具身智能：为什么机器人还没有迎来自己的 ChatGPT 时刻？](blog/posts/ai-research/embodied-ai-chatgpt-moment.md)。
+
 ## Technology · 技术实践
 
 记录编程、软件工程和工具使用。优先提供环境信息、可复现步骤与验证结果。
