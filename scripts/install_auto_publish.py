@@ -46,7 +46,8 @@ def main():
         title = meta.get('title') or (headings[0] if headings else source.stem)
         target = existing.get(''.join(str(title).split()))
         if target:
-            publisher.state['published'][source.name] = {'sha256': digest(raw), 'target': target}
+            publisher.state['published'][source.name] = {'sha256': digest(raw), 'target': target,
+                'output_hash': digest((repo / target).read_bytes())}
             print('登记已发布：', source.name)
     save(publisher.state_path, publisher.state)
     logs = Path.home() / 'Library/Logs/tech-notes-auto-publish'

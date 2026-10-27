@@ -76,12 +76,61 @@ class GitIntegrationTests(unittest.TestCase):
         self.assertEqual(first, self.git('rev-parse', 'origin/main'))
         self.assertTrue((self.repo / 'site/blog').exists())
         self.assertIn('new.md', self.publisher.state['published'])
-        # Editing or renaming a published source must not duplicate/overwrite it.
+        # Renaming identical content must not duplicate it.
         original = self.article.read_bytes()
-        self.article.write_text('# Updated\n')
         (self.inbox / 'renamed.md').write_bytes(original)
         self.publisher.scan()
         self.assertEqual(first, self.git('rev-parse', 'HEAD'))
+
+    def test_update_preserves_url_date_tags_and_pushes(self):
+        self.article.write_text('---\ndate: 2025-01-01\nslug: stable-url\ntags: [test]\n---\n# AI original\n\nOriginal body\n')
+        self.publisher.scan()
+        record = self.publisher.state['published']['new.md'].copy()
+        self.article.write_text('# Changed title\n\nUpdated body\n')
+        self.publisher.scan()
+        target = self.repo / record['target']
+        meta, body = module.parse(target.read_text())
+        self.assertEqual(meta['slug'], 'stable-url')
+        self.assertEqual(str(meta['date']['created']), '2025-01-01')
+        self.assertEqual(str(meta['date']['updated']), str(module.datetime.now(module.ZoneInfo('Asia/Shanghai')).date()))
+        self.assertEqual(meta['tags'], ['test'])
+        self.assertIn('Updated body', body)
+        self.assertEqual(len(list((self.repo / 'docs/blog/posts').rglob('*.md'))), 1)
+        self.assertEqual(self.git('rev-parse', 'HEAD'), self.git('rev-parse', 'origin/main'))
+        head = self.git('rev-parse', 'HEAD')
+        self.publisher.scan()
+        self.assertEqual(head, self.git('rev-parse', 'HEAD'))
+
+    def test_update_build_failure_restores_previous_article(self):
+        self.publisher.scan()
+        record = self.publisher.state['published']['new.md'].copy()
+        target = self.repo / record['target']
+        before = target.read_bytes()
+        self.article.write_text('# AI updated\n\nNew text\n')
+        original = module.command
+        def fail_build(repo, *args):
+            if 'mkdocs' in args:
+                raise RuntimeError('simulated build failure')
+            return original(repo, *args)
+        with patch.object(module, 'command', side_effect=fail_build):
+            with self.assertRaises(RuntimeError):
+                self.publisher.scan()
+        self.assertEqual(target.read_bytes(), before)
+        self.assertEqual('', self.git('status', '--porcelain'))
+        self.assertEqual(self.publisher.state['published']['new.md'], record)
+        self.assertFalse(self.publisher.journal.exists())
+
+    def test_independent_blog_edit_is_not_overwritten(self):
+        self.publisher.scan()
+        target = self.repo / self.publisher.state['published']['new.md']['target']
+        target.write_text(target.read_text() + '\nIndependent edit\n')
+        self.git('add', '.')
+        self.git('commit', '-m', 'manual edit')
+        self.git('push', 'origin', 'main')
+        self.article.write_text('# Updated source\n')
+        self.publisher.scan()
+        self.assertIn('Independent edit', target.read_text())
+        self.assertEqual(self.git('log', '-1', '--format=%s'), 'manual edit')
 
     def test_dirty_tree_stops_publication(self):
         (self.repo / 'unrelated.txt').write_text('private unrelated work')
@@ -108,6 +157,11 @@ class GitIntegrationTests(unittest.TestCase):
                 self.publisher.scan()
         self.assertEqual('', self.git('status', '--porcelain'))
         self.assertFalse(self.publisher.journal.exists())
+
+    def test_update_push_failure_recovers_after_restart(self):
+        self.publisher.scan()
+        self.article.write_text('# Changed source\n\nA changed paragraph\n')
+        self.test_push_failure_recovers_after_restart()
 
     def test_push_failure_recovers_after_restart(self):
         original = module.git

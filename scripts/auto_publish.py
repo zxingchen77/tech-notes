@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Watch a local Markdown inbox and publish only new articles. No extra dependencies."""
+"""Watch a local Markdown inbox and publish new and modified articles. No extra dependencies."""
 import argparse
 from datetime import date, datetime
 import fcntl
@@ -63,7 +63,7 @@ def parse(text):
     return meta, text
 
 
-def render(name, raw):
+def render(name, raw, previous=None):
     text = raw.decode('utf-8-sig').replace('\r\n', '\n')
     meta, body = parse(text)
     if meta.get('draft') is True or meta.get('private') is True or meta.get('publish') is False:
@@ -82,7 +82,8 @@ def render(name, raw):
         raise ValueError('文章标题为空或过长')
     if heading:
         body = body[:heading.start()] + body[heading.end():]
-    chosen = meta.get('categories') or []
+    previous = previous or {}
+    chosen = meta.get('categories', previous.get('categories')) or []
     if isinstance(chosen, str):
         chosen = [chosen]
     if not isinstance(chosen, list) or any(c not in CATEGORIES for c in chosen):
@@ -96,7 +97,7 @@ def render(name, raw):
             chosen = ['技术实践']
         else:
             chosen = ['个人思考']
-    tags = meta.get('tags', [])
+    tags = meta.get('tags', previous.get('tags', []))
     if not isinstance(tags, list) or any(not isinstance(t, str) for t in tags):
         raise ValueError('tags 必须为文字列表')
     today = datetime.now(ZoneInfo('Asia/Shanghai')).date()
@@ -104,9 +105,14 @@ def render(name, raw):
     created = dates.get('created', today) if isinstance(dates, dict) else dates
     updated = dates.get('updated', created) if isinstance(dates, dict) else created
     created, updated = date.fromisoformat(str(created)[:10]), date.fromisoformat(str(updated)[:10])
+    if previous:
+        prior_date = previous['date']
+        created = prior_date['created'] if isinstance(prior_date, dict) else prior_date
+        created = date.fromisoformat(str(created)[:10])
+        updated = today
     if created > today:
         return None
-    slug = str(meta.get('slug') or f'article-{digest(name.encode())[:12]}')
+    slug = str(previous.get('slug') or meta.get('slug') or f'article-{digest(name.encode())[:12]}')
     if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', slug):
         raise ValueError('slug 只能使用小写英文字母、数字与短横线')
     # Preserve export reference IDs as local numbered notes; never invent URLs.
@@ -137,7 +143,7 @@ def render(name, raw):
         notice = '\n\n!!! info "引用说明"\n    原稿的聊天引用已转为脚注，导出文件未提供对应网址，来源链接待作者补充。本次自动发布未进行事实核查。\n'
         body = body.replace('<!-- more -->', '<!-- more -->' + notice, 1)
         body += '\n\n' + '\n\n'.join(f'[^export-source-{n}]: 原稿引用 {n} 的原始网址未随文件提供，待作者补充。' for n in references.values()) + '\n'
-    metadata = {'title': title, 'date': {'created': created, 'updated': updated}, 'slug': slug,
+    metadata = {**previous, 'title': title, 'date': {'created': created, 'updated': updated}, 'slug': slug,
                 'categories': chosen, 'tags': tags}
     output = '---\n' + yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False) + '---\n\n# ' + title + '\n\n' + body.lstrip()
     return f'docs/blog/posts/{CATEGORIES[chosen[0]]}/{slug}.md', output
@@ -162,19 +168,23 @@ class Publisher:
                 raise RuntimeError('待恢复的发布提交之后出现其他提交，请人工检查 pending.json')
             for item in pending['items']:
                 path = self.repo / item['target']
-                if path.exists() and digest(path.read_bytes()) != item['output_hash']:
+                if path.exists() and digest(path.read_bytes()) not in {item['output_hash'], item.get('base_hash')}:
                     raise RuntimeError('中断的发布文件被修改，已停止自动恢复，请人工处理')
             for item in pending['items']:
                 if git(self.repo, 'ls-files', '--', item['target']):
                     git(self.repo, 'restore', '--staged', '--', item['target'])
-                (self.repo / item['target']).unlink(missing_ok=True)
+                if item.get('base_hash'):
+                    git(self.repo, 'restore', '--source=HEAD', '--worktree', '--', item['target'])
+                else:
+                    (self.repo / item['target']).unlink(missing_ok=True)
             self.journal.unlink()
             return
         if git(self.repo, 'status', '--porcelain'):
             raise RuntimeError('推送恢复前发现工作区有修改，请先处理')
         git(self.repo, 'push', 'origin', 'main')
         for item in pending['items']:
-            self.state['published'][item['name']] = {'sha256': item['source_hash'], 'target': item['target']}
+            self.state['published'][item['name']] = {**self.state['published'].get(item['name'], {}),
+                'sha256': item['source_hash'], 'target': item['target'], 'output_hash': item['output_hash']}
             self.state['observed'].pop(item['name'], None)
             LOG.info('已推送文章：%s（网站上线结果请查看 GitHub Actions）', item['name'])
         save(self.state_path, self.state)
@@ -191,14 +201,13 @@ class Publisher:
                 continue
             if path.name.startswith(('.', '_', '~')) or path.name.lower() in EXCLUDED:
                 continue
-            if path.name in self.state['published']:
-                continue
+            published = self.state['published'].get(path.name)
             try:
                 if path.stat().st_size > 2_000_000:
                     raise ValueError('文件超过 2 MB，请人工发布')
                 raw = path.read_bytes()
                 sha = digest(raw)
-                if sha in known_hashes:
+                if (published and sha == published['sha256']) or (not published and sha in known_hashes):
                     continue
                 old = self.state['observed'].get(path.name, {})
                 if old.get('sha256') != sha:
@@ -206,21 +215,44 @@ class Publisher:
                     self.state['observed'][path.name] = old
                 if not dry_run and time.time() - max(old['since'], path.stat().st_mtime) < self.settle:
                     continue
-                article = render(path.name, raw)
+                previous = None
+                base_hash = None
+                if published:
+                    target_path = self.repo / published['target']
+                    if not target_path.is_file():
+                        raise ValueError('博客文章已被移走或删除，请人工确认对应关系')
+                    base_hash = digest(target_path.read_bytes())
+                    if base_hash != published.get('output_hash'):
+                        raise ValueError('博客端文章有独立修改或尚未登记基线，暂停覆盖，请人工合并')
+                    previous, _ = parse(target_path.read_text())
+                    # Only omit exact legacy delivery lines already excluded at initial publication.
+                    omitted = set(published.get('omitted_lines', []))
+                    if omitted:
+                        raw = '\n'.join(line for line in raw.decode('utf-8-sig').split('\n') if line not in omitted).encode()
+                article = render(path.name, raw, previous)
+
                 if article is None:
                     continue
                 target, content = article
-                if (self.repo / target).exists():
+                if published:
+                    target = published['target']
+                if not published and (self.repo / target).exists():
                     raise ValueError('目标文件已存在，不覆盖现有文章')
                 slug = Path(target).stem
                 for existing in (self.repo / 'docs/blog/posts').rglob('*.md'):
+                    if existing == self.repo / target:
+                        continue
                     existing_meta, _ = parse(existing.read_text())
                     if str(existing_meta.get('slug', existing.stem)) == slug:
                         raise ValueError('文章网址 slug 与现有文章冲突')
                 if any(Path(i['target']).stem == slug for i in items):
                     raise ValueError('同批新文章使用了重复 slug')
+                if published and digest(content.encode()) == base_hash:
+                    published['sha256'] = sha
+                    self.state['observed'].pop(path.name, None)
+                    continue
                 items.append({'name': path.name, 'source_hash': sha, 'target': target,
-                              'content': content, 'output_hash': digest(content.encode())})
+                              'content': content, 'output_hash': digest(content.encode()), 'base_hash': base_hash})
                 known_hashes.add(sha)
             except (ValueError, UnicodeError, yaml.YAMLError) as error:
                 LOG.warning('跳过 %s：%s', path.name, type(error).__name__ + ': ' + str(error) if not isinstance(error, yaml.YAMLError) else 'YAML 格式错误')
@@ -239,7 +271,7 @@ class Publisher:
         git(self.repo, 'fetch', 'origin', 'main')
         if git(self.repo, 'rev-parse', 'HEAD') != git(self.repo, 'rev-parse', 'origin/main'):
             raise RuntimeError('本地与远程 main 不一致，请先人工同步')
-        transaction = {'message': f'auto-publish: {len(items)} new article(s) [{uuid.uuid4().hex[:12]}]',
+        transaction = {'message': f'auto-publish: {len(items)} article change(s) [{uuid.uuid4().hex[:12]}]',
                        'items': [{k: v for k, v in item.items() if k != 'content'} for item in items]}
         save(self.journal, transaction)
         for item in items:
