@@ -75,7 +75,9 @@ nav:
       - blog/index.md
   - 内容分类: topics.md
   - 标签: tags.md
-  - 写作指南: guides/writing.md
+  - 写作指南:
+      - 写作与维护: guides/writing.md
+      - 文件夹自动发布: guides/auto-publish.md
   - 关于: about.md
 extra_css:
   - stylesheets/extra.css

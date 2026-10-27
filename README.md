@@ -25,6 +25,12 @@ python -m mkdocs serve
 
 打开终端给出的本地地址。Windows PowerShell 使用 `.venv\Scripts\Activate.ps1` 激活环境。
 
+## 文件夹自动发布（macOS）
+
+本机已配置监听博客仓库的上一级文件夹。将新文章保存为 Markdown，文件稳定两分钟后，脚本自动补齐文章元数据、严格构建、提交并推送，由 GitHub Actions 部署。电脑需要登录并联网。以 `_` 开头的草稿不会发布；已经登记的文章不重复导入。
+
+安装、停止及排查见 [自动发布指南](docs/guides/auto-publish.md)。
+
 ## 发布一篇文章
 
 1. 复制 [`templates/article.md`](templates/article.md) 到 `docs/blog/posts/` 下的分类目录。
