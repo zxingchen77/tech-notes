@@ -47,7 +47,7 @@ def main():
         target = existing.get(''.join(str(title).split()))
         if target:
             publisher.state['published'][source.name] = {'sha256': digest(raw), 'target': target,
-                'output_hash': digest((repo / target).read_bytes())}
+                'output_hash': digest((repo / target).read_bytes()), 'source_text': raw.decode('utf-8-sig')}
             print('登记已发布：', source.name)
     save(publisher.state_path, publisher.state)
     logs = Path.home() / 'Library/Logs/tech-notes-auto-publish'

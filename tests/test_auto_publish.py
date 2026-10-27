@@ -30,6 +30,22 @@ class RenderingTests(unittest.TestCase):
         self.assertNotIn('', result)
         self.assertIn('<!-- more -->', result)
 
+    def test_curated_excerpt_and_citations_survive_edit_and_undo(self):
+        raw = '# AI report\n\nLong original paragraph ' + 'content ' * 20 + '\n\nSource claim citeturn1search1\n'
+        base = module.render('a.md', raw.encode())[1]
+        curated = base.replace('export-source-1', 'curated-source').replace('原稿引用 1 的原始网址未随文件提供，待作者补充。', 'Curated reference https://example.com')
+        prefix, body = curated.split('<!-- more -->', 1)
+        prefix = prefix[:prefix.index('# AI report')] + '# AI report\n\nCurated summary\n\n'
+        curated = prefix + '<!-- more -->' + body
+        changed = module.render('a.md', (raw + '\nTemporary test marker\n').encode())[1]
+        merged = module.merge_body(base, curated, changed)
+        self.assertIn('Temporary test marker', merged)
+        self.assertIn('Curated summary', merged)
+        self.assertIn('Curated reference https://example.com', merged)
+        restored = module.merge_body(changed, merged, base)
+        self.assertNotIn('Temporary test marker', restored)
+        self.assertEqual(module.parse(restored)[1], module.parse(curated)[1])
+
     def test_frontmatter_controls_slug(self):
         path, result = module.render('test.md', b'---\nslug: custom-name\ncategories: ["\xe6\x8a\x80\xe6\x9c\xaf\xe5\xae\x9e\xe8\xb7\xb5"]\n---\n# Test\nBody')
         self.assertEqual(path, 'docs/blog/posts/technology/custom-name.md')

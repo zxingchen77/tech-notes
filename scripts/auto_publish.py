@@ -3,6 +3,7 @@
 import argparse
 from datetime import date, datetime
 import fcntl
+import difflib
 import hashlib
 import json
 import logging
@@ -149,6 +150,38 @@ def render(name, raw, previous=None):
     return f'docs/blog/posts/{CATEGORIES[chosen[0]]}/{slug}.md', output
 
 
+def merge_body(base, current, changed):
+    """Apply source line changes only where the published baseline still matches.
+
+    Preserve curated excerpts and citation footnotes. Ambiguous edits stop safely.
+    """
+    _, base_body = parse(base)
+    new_meta, new_body = parse(changed)
+    _, current_body = parse(current)
+    if '<!-- more -->' not in current_body:
+        raise ValueError('旧文缺少摘要分隔符，请人工合并')
+    prefix, current_body = current_body.split('<!-- more -->', 1)
+    base_body = base_body.split('<!-- more -->', 1)[1]
+    new_body = new_body.split('<!-- more -->', 1)[1]
+    before, actual, after = base_body.splitlines(keepends=True), current_body.splitlines(keepends=True), new_body.splitlines(keepends=True)
+    matching = difflib.SequenceMatcher(None, before, actual, autojunk=False).get_matching_blocks()
+    edits = []
+    for kind, a, b, c, d in difflib.SequenceMatcher(None, before, after, autojunk=False).get_opcodes():
+        if kind == 'equal':
+            continue
+        locations = {(block.b + a - block.a, block.b + b - block.a)
+                     for block in matching if block.size and block.a <= a <= b <= block.a + block.size}
+        if len(locations) != 1:
+            raise ValueError('原稿修改与博客已整理的段落重叠，请人工合并；线上版本保留')
+        left, right = locations.pop()
+        edits.append((left, right, after[c:d]))
+    for left, right, replacement in reversed(edits):
+        actual[left:right] = replacement
+    prefix = re.sub(r'^# .+$', lambda _: '# ' + new_meta['title'], prefix, count=1, flags=re.M)
+    return ('---\n' + yaml.safe_dump(new_meta, allow_unicode=True, sort_keys=False) + '---\n\n' +
+            prefix + '<!-- more -->' + ''.join(actual))
+
+
 class Publisher:
     def __init__(self, repo, source, state_dir, settle=120):
         self.repo, self.source, self.state_dir, self.settle = repo, source, state_dir, settle
@@ -184,7 +217,7 @@ class Publisher:
         git(self.repo, 'push', 'origin', 'main')
         for item in pending['items']:
             self.state['published'][item['name']] = {**self.state['published'].get(item['name'], {}),
-                'sha256': item['source_hash'], 'target': item['target'], 'output_hash': item['output_hash']}
+                'sha256': item['source_hash'], 'target': item['target'], 'output_hash': item['output_hash'], 'source_text': item.get('source_text')}
             self.state['observed'].pop(item['name'], None)
             LOG.info('已推送文章：%s（网站上线结果请查看 GitHub Actions）', item['name'])
         save(self.state_path, self.state)
@@ -206,6 +239,7 @@ class Publisher:
                 if path.stat().st_size > 2_000_000:
                     raise ValueError('文件超过 2 MB，请人工发布')
                 raw = path.read_bytes()
+                source_text = raw.decode('utf-8-sig')
                 sha = digest(raw)
                 if (published and sha == published['sha256']) or (not published and sha in known_hashes):
                     continue
@@ -235,6 +269,13 @@ class Publisher:
                     continue
                 target, content = article
                 if published:
+                    if not published.get('source_text'):
+                        raise ValueError('缺少旧原稿基线，请先登记后再同步')
+                    baseline_raw = '\n'.join(line for line in published['source_text'].split('\n') if line not in published.get('omitted_lines', [])).encode()
+                    baseline = render(path.name, baseline_raw, previous)
+                    if baseline is None:
+                        raise ValueError('旧原稿基线无法生成，请人工检查')
+                    content = merge_body(baseline[1], target_path.read_text(), content)
                     target = published['target']
                 if not published and (self.repo / target).exists():
                     raise ValueError('目标文件已存在，不覆盖现有文章')
@@ -249,10 +290,11 @@ class Publisher:
                     raise ValueError('同批新文章使用了重复 slug')
                 if published and digest(content.encode()) == base_hash:
                     published['sha256'] = sha
+                    published['source_text'] = source_text
                     self.state['observed'].pop(path.name, None)
                     continue
                 items.append({'name': path.name, 'source_hash': sha, 'target': target,
-                              'content': content, 'output_hash': digest(content.encode()), 'base_hash': base_hash})
+                              'source_text': source_text, 'content': content, 'output_hash': digest(content.encode()), 'base_hash': base_hash})
                 known_hashes.add(sha)
             except (ValueError, UnicodeError, yaml.YAMLError) as error:
                 LOG.warning('跳过 %s：%s', path.name, type(error).__name__ + ': ' + str(error) if not isinstance(error, yaml.YAMLError) else 'YAML 格式错误')
